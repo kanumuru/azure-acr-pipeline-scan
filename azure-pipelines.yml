@@ -1,0 +1,27 @@
+pool: Default
+jobs:
+- job: sast_scan
+  steps:
+  - script: bandit -f json -o sast-result.json -r app.py || true // need to fix for nodejsscan
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)'
+      contents: '*.json'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: sast_results
+
+- job: sca_scan
+  steps:  
+  - script: pyraider check -f requirements.txt -e json sca-results.json || // true need to fix for npm audit
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: '$(Build.SourcesDirectory)'
+      contents: '*.json'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: sca_results
