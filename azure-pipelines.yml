@@ -2,7 +2,7 @@ pool: Default
 jobs:
 - job: sast_scan
   steps:
-  - script: bandit -f json -o sast-result.json -r app.py || true // need to fix for nodejsscan
+  - script: nodejsscan -d $PWD >> sast-result.json || true
   - task: CopyFiles@2
     inputs:
       sourceFolder: '$(Build.SourcesDirectory)'
@@ -15,7 +15,7 @@ jobs:
 
 - job: sca_scan
   steps:  
-  - script: pyraider check -f requirements.txt -e json sca-results.json || // true need to fix for npm audit
+  - script: npm audit --json >> sca-results.json || true
   - task: CopyFiles@2
     inputs:
       sourceFolder: '$(Build.SourcesDirectory)'
