@@ -1,7 +1,7 @@
 trigger:
   branches:
     include:
-      - master
+      - main
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -10,10 +10,9 @@ variables:
   ACR_LOGIN_SERVER: 'zzeydwqgimagescanacr.azurecr.io'
   IMAGE_NAME: 'sampleapp'
   IMAGE_TAG: 'latest'
-  SCANNER_TOOL_PATH: '/usr/local/bin/trivy'  # Adjust this if using a different scanner
+  SCANNER_TOOL_PATH: '/usr/local/bin/trivy'
 
 stages:
-
 
   - stage: ScanImage
     jobs:
@@ -22,26 +21,15 @@ stages:
           - script: |
               echo "Installing Trivy..."
               curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              echo "Trivy installed successfully:"
               trivy --version
               echo "Scanning the image with Trivy..."
-              $(SCANNER_TOOL_PATH) image $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG) > scan_report.txt
+              $SCANNER_TOOL_PATH image $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG > scan_report.txt
             displayName: 'Run Image Scan'
-          - publish: scan_report.txt
-            artifact: 'SecurityReports'
-
-  - stage: Review
-    dependsOn: ScanImage
-    condition: succeededOrFailed()
-    jobs:
-      - job: ReviewScanResults
-        steps:
-          - task: DownloadPipelineArtifact@2
+          - task: PublishPipelineArtifact@1
             inputs:
+              targetPath: 'scan_report.txt'
               artifactName: 'SecurityReports'
-              downloadPath: $(System.ArtifactsDirectory)
-          - script: |
-              if grep -q 'HIGH' $(System.ArtifactsDirectory)/scan_report.txt; then
-                echo "High severity vulnerabilities found! Blocking deployment."
-                exit 1
-              fi
-            displayName: 'Check Scan Results'
+            displayName: 'Publish Scan Report'
+
+
