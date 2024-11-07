@@ -3,8 +3,7 @@ trigger:
     include:
       - main
 
-pool:
-  vmImage: 'ubuntu-latest'
+pool: Default
 
 variables:
   ACR_LOGIN_SERVER: 'zzeydwqgimagescanacr.azurecr.io'
@@ -32,4 +31,21 @@ stages:
               artifactName: 'SecurityReports'
             displayName: 'Publish Scan Report'
 
-
+  - stage: Review
+    dependsOn: ScanImage
+    condition: succeededOrFailed()
+    jobs:
+      - job: ReviewScanResults
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'SecurityReports'
+              downloadPath: $(System.ArtifactsDirectory)
+          - script: |
+              if grep -q 'HIGH' $(System.ArtifactsDirectory)/scan_report.txt; then
+                echo "High severity vulnerabilities found! Blocking deployment."
+                exit 1
+              else
+                echo "No high severity vulnerabilities found. Proceeding..."
+              fi
+            displayName: 'Check Scan Results'
