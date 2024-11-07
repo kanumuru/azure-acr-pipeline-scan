@@ -40,6 +40,7 @@ stages:
           
           - script: |
               echo "Scanning the image with Trivy..."
+              $SCANNER_TOOL_PATH image $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG 
               $SCANNER_TOOL_PATH image $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG > scan_report.txt
             displayName: 'Run Image Scan'
 
