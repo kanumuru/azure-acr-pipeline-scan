@@ -69,8 +69,6 @@ stages:
               echo "Checking for critical or high vulnerabilities..."
               critical=$(grep -i "CRITICAL" $(Pipeline.Workspace)/SecurityReports/scan_report.txt | wc -l)
               high=$(grep -i "HIGH" $(Pipeline.Workspace)/SecurityReports/scan_report.txt | wc -l)
-              echo "Critical count: $critical"
-              echo "High count: $high"
               if [ "$critical" -gt 1 ] || [ "$high" -gt 1 ]; then
                 echo "Critical or high vulnerabilities found. Failing pipeline."
                 exit 1
