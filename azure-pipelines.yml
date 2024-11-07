@@ -1,27 +1,47 @@
-pool: Default
-jobs:
-- job: sast_scan
-  steps:
-  - script: nodejsscan -d $PWD >> sast-result.json || true
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: '$(Build.SourcesDirectory)'
-      contents: '*.json'
-      targetFolder: $(Build.ArtifactStagingDirectory)
-  - task: PublishBuildArtifacts@1
-    inputs:
-      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: sast_results
+trigger:
+  branches:
+    include:
+      - master
 
-- job: sca_scan
-  steps:  
-  - script: npm audit --json >> sca-results.json || true
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: '$(Build.SourcesDirectory)'
-      contents: '*.json'
-      targetFolder: $(Build.ArtifactStagingDirectory)
-  - task: PublishBuildArtifacts@1
-    inputs:
-      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: sca_results
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  ACR_LOGIN_SERVER: 'zzeydwqgimagescanacr.azurecr.io'
+  IMAGE_NAME: 'sampleapp'
+  IMAGE_TAG: 'latest'
+  SCANNER_TOOL_PATH: '/usr/local/bin/trivy'  # Adjust this if using a different scanner
+
+stages:
+
+
+  - stage: ScanImage
+    jobs:
+      - job: Scan
+        steps:
+          - script: |
+              echo "Installing Trivy..."
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              trivy --version
+              echo "Scanning the image with Trivy..."
+              $(SCANNER_TOOL_PATH) image $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG) > scan_report.txt
+            displayName: 'Run Image Scan'
+          - publish: scan_report.txt
+            artifact: 'SecurityReports'
+
+  - stage: Review
+    dependsOn: ScanImage
+    condition: succeededOrFailed()
+    jobs:
+      - job: ReviewScanResults
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'SecurityReports'
+              downloadPath: $(System.ArtifactsDirectory)
+          - script: |
+              if grep -q 'HIGH' $(System.ArtifactsDirectory)/scan_report.txt; then
+                echo "High severity vulnerabilities found! Blocking deployment."
+                exit 1
+              fi
+            displayName: 'Check Scan Results'
