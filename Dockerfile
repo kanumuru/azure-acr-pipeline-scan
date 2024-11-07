@@ -1,1 +1,1 @@
-FROM vul-flask
+FROM kanumuruwe45/azure-vm-acr-attackv3
