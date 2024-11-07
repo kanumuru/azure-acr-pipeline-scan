@@ -11,19 +11,23 @@ variables:
   IMAGE_TAG: 'latest'
   SCANNER_TOOL_PATH: '/usr/local/bin/trivy'  # Adjust this if using a different scanner
 
-steps:
-  # Build and push the Docker image to the registry
-  - task: Docker@2
-    inputs:
-      containerRegistry: 'docker-service-con'   # Use your Docker Registry service connection name
-      repository: '$(IMAGE_NAME)'
-      command: 'buildAndPush'
-      Dockerfile: '**/Dockerfile'
-      tags: |
-        $(IMAGE_TAG)
-
 stages:
+  - stage: BuildAndPush
+    jobs:
+      - job: Build
+        steps:
+          # Build and push the Docker image to the registry
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'docker-service-con'   # Use your Docker Registry service connection name
+              repository: '$(IMAGE_NAME)'
+              command: 'buildAndPush'
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                $(IMAGE_TAG)
+
   - stage: ScanImage
+    dependsOn: BuildAndPush
     jobs:
       - job: Scan
         steps:
