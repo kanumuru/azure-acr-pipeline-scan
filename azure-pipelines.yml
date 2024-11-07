@@ -21,3 +21,26 @@ steps:
       Dockerfile: '**/Dockerfile'
       tags: |
         $(IMAGE_TAG)
+
+stages:
+  - stage: ScanImage
+    jobs:
+      - job: Scan
+        steps:
+          - script: |
+              echo "Installing Trivy..."
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              echo "Trivy installed successfully:"
+              trivy --version
+            displayName: 'Install Trivy'
+          
+          - script: |
+              echo "Scanning the image with Trivy..."
+              $SCANNER_TOOL_PATH image $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG > scan_report.txt
+            displayName: 'Run Image Scan'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: 'scan_report.txt'
+              artifactName: 'SecurityReports'
+            displayName: 'Publish Scan Report'
