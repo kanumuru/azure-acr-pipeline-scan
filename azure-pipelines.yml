@@ -14,7 +14,7 @@ variables:
 stages:
 
   - stage: ScanImage
-    jobs: 
+    jobs:
       - job: Scan
         steps:
           - script: |
@@ -23,7 +23,7 @@ stages:
               echo "Trivy installed successfully:"
               trivy --version
               echo "Scanning the image with Trivy..."
-              trivy image nginx:latest > scan_report.txt
+              $SCANNER_TOOL_PATH image $IMAGE_NAME:$IMAGE_TAG > scan_report.txt
             displayName: 'Run Image Scan'
           - task: PublishPipelineArtifact@1
             inputs:
