@@ -16,7 +16,6 @@ stages:
     jobs:
       - job: Build
         steps:
-          # Build and push the Docker image to the registry
           - task: Docker@2
             inputs:
               containerRegistry: 'docker-service-con'   # Use your Docker Registry service connection name
@@ -49,3 +48,32 @@ stages:
               targetPath: 'scan_report.txt'
               artifactName: 'SecurityReports'
             displayName: 'Publish Scan Report'
+
+  - stage: ReviewScanResults
+    dependsOn: ScanImage
+    jobs:
+      - job: EvaluateScan
+        steps:
+          - script: |
+              echo "Checking for critical or high vulnerabilities..."
+              critical=$(grep -i "CRITICAL" scan_report.txt | wc -l)
+              high=$(grep -i "HIGH" scan_report.txt | wc -l)
+
+              if [ "$critical" -gt 0 ] || [ "$high" -gt 0 ]; then
+                echo "Critical or high vulnerabilities found. Failing pipeline."
+                exit 1  # Fail the pipeline if critical or high vulnerabilities are found
+              else
+                echo "No critical or high vulnerabilities found. Approved for deployment."
+              fi
+            displayName: 'Evaluate Scan Report'
+
+  - stage: Deploy
+    dependsOn: ReviewScanResults
+    condition: succeeded()  # Only run if the previous stage was successful
+    jobs:
+      - job: DeployApp
+        steps:
+          - script: |
+              echo "Deploying application..."
+              # Add deployment commands here (e.g., Helm deploy, kubectl apply, etc.)
+            displayName: 'Deploy Application'
