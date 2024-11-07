@@ -18,7 +18,7 @@ stages:
         steps:
           - task: AzureCLI@2
             inputs:
-              azureSubscription: 'ASE'  # Name of the managed identity service connection
+              azureSubscription: 'test-deveops-acr-pipeline'  # Name of the managed identity service connection
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
