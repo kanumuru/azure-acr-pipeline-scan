@@ -6,30 +6,47 @@ trigger:
 pool: Default
 
 variables:
-  ACR_LOGIN_SERVER: 'zzeydwqgimagescanacr.azurecr.io'
+  ACR_LOGIN_SERVER: zzeydwqgimagescanacr.azurecr.io
   IMAGE_NAME: 'sampleapp'
   IMAGE_TAG: 'latest'
-  SCANNER_TOOL_PATH: '/usr/local/bin/trivy'
+  SCANNER_TOOL_PATH: '/usr/local/bin/trivy'  # Adjust this if using a different scanner
 
 stages:
+  - stage: BuildAndPush
+    jobs:
+      - job: Build
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'AzureDevOpsPipelineIdentity'  # Name of the managed identity service connection
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Logging into Azure Container Registry..."
+                az acr login --name $(ACR_LOGIN_SERVER)
+
+          - task: Docker@2
+            inputs:
+              containerRegistry: $(ACR_LOGIN_SERVER)
+              repository: $(IMAGE_NAME)
+              command: 'buildAndPush'
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                $(IMAGE_TAG)
 
   - stage: ScanImage
+    dependsOn: BuildAndPush
     jobs:
       - job: Scan
         steps:
           - script: |
               echo "Installing Trivy..."
               curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-              echo "Trivy installed successfully:"
-              trivy --version
               echo "Scanning the image with Trivy..."
-              $SCANNER_TOOL_PATH image $IMAGE_NAME:$IMAGE_TAG > scan_report.txt
+              $(SCANNER_TOOL_PATH) image $(ACR_LOGIN_SERVER)/$(IMAGE_NAME):$(IMAGE_TAG) > scan_report.txt
             displayName: 'Run Image Scan'
-          - task: PublishPipelineArtifact@1
-            inputs:
-              targetPath: 'scan_report.txt'
-              artifactName: 'SecurityReports'
-            displayName: 'Publish Scan Report'
+          - publish: scan_report.txt
+            artifact: 'SecurityReports'
 
   - stage: Review
     dependsOn: ScanImage
@@ -45,7 +62,5 @@ stages:
               if grep -q 'HIGH' $(System.ArtifactsDirectory)/scan_report.txt; then
                 echo "High severity vulnerabilities found! Blocking deployment."
                 exit 1
-              else
-                echo "No high severity vulnerabilities found. Proceeding..."
               fi
             displayName: 'Check Scan Results'
