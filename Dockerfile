@@ -1,1 +1,1 @@
-FROM kanumuruwe45/azure-vm-acr-attackv3
+FROM bkimminich/juice-shop
